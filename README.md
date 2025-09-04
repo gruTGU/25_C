@@ -1,4 +1,4 @@
-Q1
+————Q1————
 
   ## 基本用法 命令行（同目录放 附件.xlsx）
     python nipt_q1_pipeline.py --excel 附件.xlsx
@@ -16,8 +16,8 @@ Q1
       outputs_q1/fig_q1_model_pred_curves.png 预测曲线（若安装成功）
       outputs_q1/q1_model_predictions.csv 预测细表
 
---
-Q2
+
+————Q2————
   ## 可直接用 Q1 的清洗结果
     python nipt_q2_pipeline.py --clean_csv outputs_q1/q1_clean_male.csv
   
