@@ -69,6 +69,23 @@
     图：① P_hit–GA 曲线（分 BMI 组，误差带）；② 风险目标函数曲线；③ 误差敏感性对比图。
     说明：哪些协变量（年龄/身高/体重）显著、会让曲线整体平移多少（可用偏依赖/分位数情景展示）。
   ---
+  ## 优先使用 Q1 的清洗结果（推荐）
+    python nipt_q3_pipeline.py --clean_csv outputs_q1/q1_clean_male.csv
+
+## 或者直接从 Excel 清洗（与前文要求一致，含 GC 轻质控）
+    python nipt_q3_pipeline.py --excel 附件.xlsx --sheet Sheet1
+
+## 可调参数（示例）
+    python nipt_q3_pipeline.py --target_hit 0.9 --lam 1.0 --sigma_mode ga_local --deg 3 --bootstrap_B 300
+ ##
+    输出：
+    outputs_q3/q3_phit_curves.png：各 BMI 组的 P(hit) 曲线 + 90% 阈值与竖线
+    outputs_q3/q3_risk_tradeoff_curves.png：风险-命中率目标函数曲线（λ 可调）
+    outputs_q3/q3_sigma_sensitivity.png：σ±20% 敏感性示例图
+    outputs_q3/q3_recommendations.csv：各 BMI 组样本量、两类推荐孕周及 95% CI
+    outputs_q3/q3_mu_coefs.csv：均值模型系数（便于写报告）
+    （若 sigma_mode=ga_local）outputs_q3/q3_sigma_by_ga.csv：σ(孕周) 估计表
+  >> 脚本会自动兼容你给的列名映射（如“孕妇代码/年龄/检测孕周/孕妇BMI/Y染色体浓度/GC含量”等），若身高/体重不存在会自动略过，不影响运行。
   # Q4
   ......
   ---
