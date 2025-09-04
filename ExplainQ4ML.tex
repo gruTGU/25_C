@@ -1,0 +1,138 @@
+% !TEX program = xelatex
+\documentclass[11pt,a4paper]{article}
+
+% ---------- 基础版式 ----------
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\setstretch{1.15}
+\usepackage{parskip}
+\setlength{\parskip}{0.6em}
+\setlength{\parindent}{0pt}
+
+% ---------- XeLaTeX 字体与中文支持（macOS 适配） ----------
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{ifthen}
+\usepackage{xcolor}
+
+% 英文字体（优先 Apple 系，缺省回退到 Times New Roman）
+\IfFontExistsTF{Times New Roman}{
+  \setmainfont{Times New Roman}
+}{
+  \setmainfont{Times}
+}
+\IfFontExistsTF{Helvetica Neue}{
+  \setsansfont{Helvetica Neue}
+}{
+  \setsansfont{Arial}
+}
+\IfFontExistsTF{Menlo}{
+  \setmonofont{Menlo}
+}{
+  \setmonofont{Courier New}
+}
+
+% 中文字体（按 macOS 常见中文字体依次回退）
+\IfFontExistsTF{sans-serif}{
+  \setCJKmainfont{sans-serif}
+}{
+  \IfFontExistsTF{STHeiti}{
+    \setCJKmainfont{STHeiti}
+  }{
+    \IfFontExistsTF{WenQuanYi Zen Hei}{
+      \setCJKmainfont{WenQuanYi Zen Hei}
+    }{
+      \setCJKmainfont{Arial Unicode MS}
+    }
+  }
+}
+\IfFontExistsTF{Heiti SC}{
+  \setCJKsansfont{Heiti SC}
+}{
+  \setCJKsansfont{PingFang SC}
+}
+\IfFontExistsTF{Kaiti SC}{
+  \setCJKmonofont{Kaiti SC}
+}{
+  \setCJKmonofont{Songti SC}
+}
+
+% 中文断行 & 数学内中文
+\xeCJKsetup{CJKglue=\hskip 0.15em plus 0.05em minus 0.05em, CJKmath=true}
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+
+\title{NIPT 第四问：基于可解释机器学习的个体化检测与复检策略}
+\author{项目：NIPT 的时点选择与胎儿的异常判定}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{目标}
+在男胎样本上，利用可解释的概率模型给出首检孕周 $t_1$ 与（可选）复检孕周 $t_2$ 的最优策略，使
+\[
+J = \underbrace{\mathrm{risk}(T_{\mathrm{res}})}_{\text{孕周风险}}
++ \lambda\,(1-P_{\mathrm{succ}})
++ c_1 + \mathbf{1}\{\text{复检}\}\,c_r
++ \kappa\,\mathbb{E}[T_{\mathrm{res}}-t_{\min}]
+\]
+最小。这里 $\mathrm{risk}(t) \in \{1,2,3\}$ 分别对应 $t\!\le\!12$, $13\!\le\!t\!\le\!27$, $t\!\ge\!28$ 周。
+
+\section{命中率模型 $P_{\mathrm{hit}}(t\mid x)$}
+用可解释模型（GAM/EBM/LightGBM(单调约束)）预测在孕周 $t$ 达到阈值（如 $Y\!\ge\!4\%$）的概率。
+设特征 $x=(\text{GA},\text{BMI},\text{Age},\text{Height},\text{Weight})$，标签
+$y=\mathbf{1}\{Y\ge 0.04\}$。
+
+\paragraph{单调约束}
+为符合生理先验，要求 $P_{\mathrm{hit}}$ 对 GA 单调不减：
+\[
+\frac{\partial}{\partial\,\mathrm{GA}} P_{\mathrm{hit}}(t\mid x) \ge 0.
+\]
+实际实现中在 LightGBM 里对 GA 特征施加正单调约束；GAM/EBM 则靠样条/分段函数与等概率校准实现近似单调。
+
+\paragraph{概率校准}
+先得原始分数 $s(x)$，再用单调的校准函数 $g(\cdot)$（如保序回归）得到
+\[
+\hat P_{\mathrm{hit}}(x) = g\big(s(x)\big),
+\]
+以提升概率可解释性。
+
+\section{策略优化}
+\subsection{单次检测}
+在网格 $t\!\in[t_{\min}, t_{\max}]$ 上求
+\[
+J_1(t)= \mathrm{risk}(t) + \lambda\,(1-\hat P_{\mathrm{hit}}(t\mid \tilde x)) + c_1 + \kappa\,(t-t_{\min}),
+\]
+取最小点 $t_1^\star$。$\tilde x$ 为分组情景（如 BMI 组中位数）。
+
+\subsection{一次复检}
+设 $t_2=t_1+\Delta$，$\Delta\in\mathcal{D}$（如 $\{1,1.5,2,3\}$ 周）。一次成功概率 $P_1=\hat P(t_1)$；
+二次命中概率 $P_2'=\alpha \hat P(t_2)+(1-\alpha)\hat P(t_1)$（$\alpha\!\in[0,1]$ 控制独立性）。
+成功概率 $P_{\mathrm{succ}}=P_1+(1-P_1)P_2'$，
+期望结果孕周 $\mathbb{E}[T_{\mathrm{res}}]=P_1 t_1 + (1-P_1)t_2$。
+目标
+\[
+J_2(t_1,\Delta)= c_1+(1-P_1)c_r + \mathbb{E}[\mathrm{risk}(T_{\mathrm{res}})] + \lambda\,(1-P_{\mathrm{succ}})
++ \kappa\,(\mathbb{E}[T_{\mathrm{res}}]-t_{\min}).
+\]
+在网格 $(t_1,\Delta)$ 上暴力搜索最优值。
+
+\section{解释性}
+输出特征贡献曲线（GAM/EBM 形状函数）、LightGBM 的单调 PDP、或 SHAP（如可用）。
+并提供策略表（各 BMI 组的 $t_1^\*,t_2^\*$、成功率与置信带）。
+
+\section{实现}
+附带的 \texttt{nipt\_q4\_ml\_policy.py} 脚本实现上述流程，默认：
+\begin{itemize}
+\item 模型优先 LightGBM(单调) $\rightarrow$ EBM $\rightarrow$ GAM(样条GLM)；
+\item 校准优先 Isotonic $\rightarrow$ Platt $\rightarrow$ 无；
+\item 输出策略表与可视化（热力图、曲线）。
+\end{itemize}
+
+\end{document}
