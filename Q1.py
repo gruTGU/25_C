@@ -23,6 +23,15 @@ class NullWriter:
 stderr_fileno = sys.stderr
 sys.stderr = NullWriter()
 
+plt.rcParams['font.family'] = [
+    'Microsoft YaHei','SimHei','Arial Unicode MS','STHeiti',
+    'PingFang SC','WenQuanYi Zen Hei','Source Han Sans SC','sans-serif'
+]
+plt.rcParams['axes.unicode_minus'] = False
+
+
+sys.stderr = stderr_fileno
+
 # -----------------------------
 # 工具函数
 # -----------------------------
