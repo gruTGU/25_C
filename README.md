@@ -4,7 +4,9 @@
 - **Q4.py**
 - **Q4ML.py** >>机器学习版
 - **对于Q3Q4的建模解释pdf**
+- **对于Q4ML的建模解释pdf**
 - **文献**
+  
 
 
 
@@ -108,3 +110,20 @@
     q4_policy_table.csv：各 BMI 组的最优单次与两次策略（t1*, Δ*, t2*），成功率、期望抽血次数、期望结果孕周、目标值；
     q4_heatmap_[组].png：每个 BMI 组的 J2（t1，Δ）热力图（附 t1* 竖线）；
     q4_phit_[组].png：该组的 P(hit∣t) 曲线与推荐 t1*/t2
+---
+# 环境与依赖
+## Python 版本
+    推荐：Python 3.9 – 3.12
+## 核心依赖（Q1–Q4 基础版，必备）
+    numpy ≥ 1.23, < 3.0
+    pandas ≥ 1.5, < 3.0
+    matplotlib ≥ 3.6, < 4.0
+    openpyxl ≥ 3.1（读取 附件.xlsx 用）
+### 这些即可运行：nipt_q1_pipeline.py, nipt_q2_pipeline.py, nipt_q3_pipeline.py, nipt_q4_policy.py（脚本内部已尽量避免强依赖，statsmodels 缺失也能跑）
+## 可选依赖（提升建模/可解释性）
+    statsmodels ≥ 0.13, < 1.0（若存在，将用于某些回归/对比）
+    scikit-learn ≥ 1.1, < 2.0（用于概率校准：Isotonic/Platt）
+    lightgbm ≥ 3.3, < 5.0（ML 版可选；支持 单调约束）
+    interpret ≥ 0.5, < 0.7（可解释提升：EBM/GA²M）
+### 这些用于 ML 扩展脚本：nipt_q4_ml_policy.py。若未安装，将自动回退到更基础的模型/方法。
+---
