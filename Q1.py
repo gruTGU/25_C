@@ -4,10 +4,24 @@ import re
 import math
 import argparse
 import warnings
-
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+
+import logging
+import matplotlib
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+
+class NullWriter:
+    def write(self, arg):
+        pass
+    def flush(self):
+        pass
+
+
+stderr_fileno = sys.stderr
+sys.stderr = NullWriter()
 
 # -----------------------------
 # 工具函数
