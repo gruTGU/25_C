@@ -119,11 +119,11 @@
     pandas ≥ 1.5, < 3.0
     matplotlib ≥ 3.6, < 4.0
     openpyxl ≥ 3.1（读取 附件.xlsx 用）
-### 这些即可运行：nipt_q1_pipeline.py, nipt_q2_pipeline.py, nipt_q3_pipeline.py, nipt_q4_policy.py（脚本内部已尽量避免强依赖，statsmodels 缺失也能跑）
+### （脚本内部已尽量避免强依赖，statsmodels 缺失也能跑）
 ## 可选依赖（提升建模/可解释性）
     statsmodels ≥ 0.13, < 1.0（若存在，将用于某些回归/对比）
     scikit-learn ≥ 1.1, < 2.0（用于概率校准：Isotonic/Platt）
     lightgbm ≥ 3.3, < 5.0（ML 版可选；支持 单调约束）
     interpret ≥ 0.5, < 0.7（可解释提升：EBM/GA²M）
-### 这些用于 ML 扩展脚本：nipt_q4_ml_policy.py。若未安装，将自动回退到更基础的模型/方法。
+### 这些用于 ML 扩展脚本：Q4ML.py。若未安装，将自动回退到更基础的模型/方法。
 ---
