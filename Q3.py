@@ -161,9 +161,8 @@ def estimate_sigma(df, mu_fn, mode="ga_local", bin_width=0.5, qc_cols=None):
     """
     估计观测误差 σ：
       - global: 全局残差标准差
-      - ga_local: 按孕周分箱估计局部残差 std，并沿 GA 插值
-      - by_qc: 若提供 qc_cols（例如 ['unique_mapped','filt_ratio','gc']），
-               用一个简单线性模型 std = a + b1*z1 + b2*z2 + ... 来拟合，然后按 df_new 预测
+      - ga_local: 按孕周分箱估计局部残差 std，并沿 GA 插值（健壮到极少数/单点情况）
+      - by_qc: 若提供 qc_cols，用线性模型拟合 std 与 QC 特征
     返回：sigma_fn(df_new) -> 预测 σ（下限1e-4）
     """
     y = df["Y_frac"].values.astype(float)
@@ -177,6 +176,115 @@ def estimate_sigma(df, mu_fn, mode="ga_local", bin_width=0.5, qc_cols=None):
         s = float(np.nanstd(resid))
         s = max(s, 0.01)
         return lambda d: np.full(len(d), s)
+
+    if mode == "ga_local":
+        # 按 GA 分箱（需兼容只有一个孕周或样本极少的情形）
+        ga = df["GA_weeks"].values.astype(float)
+        ok = (~np.isnan(ga)) & (~np.isnan(y))
+        ga = ga[ok]; rr = (y - mu)[ok]
+
+        if len(ga) == 0:
+            s = float(np.clip(np.nanstd(resid), 0.01, 0.05))
+            return lambda d: np.full(len(d), s)
+
+        start = max(9.0, float(np.nanmin(ga)))
+        stop  = min(30.0, float(np.nanmax(ga)))
+        # 确保至少产生两个边界
+        if not np.isfinite(start) or not np.isfinite(stop):
+            s = float(np.clip(np.nanstd(resid), 0.01, 0.05))
+            return lambda d: np.full(len(d), s)
+        if stop - start < 1e-6:
+            bins = np.array([start - bin_width, start + bin_width], dtype=float)
+        else:
+            bins = np.arange(start, stop + bin_width, bin_width, dtype=float)
+            if bins.size < 2:
+                bins = np.array([start - bin_width, start + bin_width], dtype=float)
+
+        mids = (bins[:-1] + bins[1:]) / 2.0
+        global_sd = float(np.nanstd(rr))
+        if not np.isfinite(global_sd) or global_sd == 0:
+            global_sd = 0.02
+
+        if mids.size == 0:
+            # 无有效分箱，退化为全局常数
+            s = float(np.clip(global_sd, 0.005, 0.06))
+            return lambda d: np.full(len(d), s)
+
+        sds = np.empty_like(mids)
+        sds.fill(np.nan)
+        for i in range(mids.size):
+            m = (ga >= bins[i]) & (ga < bins[i+1])
+            if np.any(m):
+                sds[i] = np.nanstd(rr[m])
+
+        # 用全局值填补空缺，并裁剪合理范围
+        sds = np.where(np.isnan(sds), global_sd, sds)
+        sds = np.clip(sds, 0.005, 0.06)
+
+        def sigma_fn(dnew):
+            GA = dnew["GA_weeks"].values.astype(float)
+            if sds.size == 0:
+                return np.full(len(GA), float(np.clip(global_sd, 0.005, 0.06)))
+            idx = np.digitize(GA, bins) - 1
+            # 限制到合法索引范围
+            idx = np.clip(idx, 0, sds.size - 1)
+            return sds[idx]
+        return sigma_fn
+
+    if mode == "by_qc" and qc_cols:
+        # 简单线性回归：std ~ qc 标准化后线性组合
+        ga = df["GA_weeks"].values.astype(float)
+        ok = (~np.isnan(ga)) & (~np.isnan(y))
+        if not np.any(ok):
+            s = float(np.clip(np.nanstd(resid), 0.01, 0.05))
+            return lambda d: np.full(len(d), s)
+        bins = np.arange(max(9, np.nanmin(ga[ok])), min(30, np.nanmax(ga[ok])) + 0.5, 0.5)
+        if bins.size < 2:
+            s = float(np.clip(np.nanstd(resid), 0.01, 0.05))
+            return lambda d: np.full(len(d), s)
+
+        idx = np.digitize(ga[ok], bins) - 1
+        local_std = np.zeros(np.sum(ok), dtype=float)
+        for i in range(np.min(idx), np.max(idx)+1):
+            m = (idx == i)
+            if np.any(m):
+                local_std[m] = np.nanstd((y - mu)[ok][m])
+        if np.all(local_std == 0):
+            local_std[:] = np.nanmedian(local_std) if np.isfinite(np.nanmedian(local_std)) else np.nanstd(resid)
+
+        # 构造 QC 特征
+        Zs = []
+        for c in qc_cols:
+            if c in df.columns:
+                z = pd.to_numeric(df.loc[ok, c], errors="coerce").values.astype(float)
+                m, s = np.nanmean(z), np.nanstd(z)
+                s = s if (s and np.isfinite(s)) else 1.0
+                Zs.append((z - m) / s)
+            else:
+                Zs.append(np.zeros(np.sum(ok)))
+        Z = np.column_stack(Zs + [np.ones(np.sum(ok))])  # 常数项
+        coefs, *_ = np.linalg.lstsq(Z, local_std, rcond=None)
+
+        def sigma_fn(dnew):
+            Feats = []
+            for c in qc_cols:
+                if c in dnew.columns:
+                    z = pd.to_numeric(dnew[c], errors="coerce").values.astype(float)
+                    m, s = np.nanmean(z), np.nanstd(z)
+                    s = s if (s and np.isfinite(s)) else 1.0
+                    Feats.append((z - m) / s)
+                else:
+                    Feats.append(np.zeros(len(dnew)))
+            Zn = np.column_stack(Feats + [np.ones(len(dnew))])
+            s_hat = Zn @ coefs
+            s_hat = np.clip(s_hat, 0.005, 0.06)
+            return s_hat
+        return sigma_fn
+
+    # 兜底：全局
+    s = float(np.nanstd(resid))
+    s = np.clip(s, 0.01, 0.05)
+    return lambda d: np.full(len(d), s)
 
     if mode == "ga_local":
         # 按 GA 分箱
