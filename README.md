@@ -1,7 +1,7 @@
 - **Q1.py**
 - **Q2.py**
-- Q3.py
-- Q4.py
+- **Q3.py**
+- **Q4.py**
 - **文献**
 
 
@@ -87,5 +87,22 @@
     （若 sigma_mode=ga_local）outputs_q3/q3_sigma_by_ga.csv：σ(孕周) 估计表
   >> 脚本会自动兼容你给的列名映射（如“孕妇代码/年龄/检测孕周/孕妇BMI/Y染色体浓度/GC含量”等），若身高/体重不存在会自动略过，不影响运行。
   # Q4
-  ......
-  ---
+  
+## 推荐：用 Q1 清洗结果
+    python nipt_q4_policy.py --clean_csv outputs_q1/q1_clean_male.csv
+
+## 或直接从 Excel 清洗（与前文一致）
+    python nipt_q4_policy.py --excel 附件.xlsx --sheet Sheet1
+
+## 常用可调参数
+    python nipt_q4_policy.py \
+      --delta_choices "1,1.5,2,3" \
+      --lam 1.0 --c1 1.0 --cr 1.0 --kappa 0.05 \
+      --alpha 1.0 \   # 两次命中独立性：1独立，0完全相关
+      --ga_min 10 --ga_max 29 --ga_step 0.25 \
+      --deg 3 --sigma_mode ga_local
+
+## 生成
+    q4_policy_table.csv：各 BMI 组的最优单次与两次策略（t1*, Δ*, t2*），成功率、期望抽血次数、期望结果孕周、目标值；
+    q4_heatmap_[组].png：每个 BMI 组的 J2（t1，Δ）热力图（附 t1* 竖线）；
+    q4_phit_[组].png：该组的 P(hit∣t) 曲线与推荐 t1*/t2
