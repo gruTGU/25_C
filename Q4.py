@@ -534,7 +534,7 @@ def run_q4(excel_path="附件.xlsx",
     print(f"[OK] 策略表已保存：{csv_path}")
 
     # 控制台总结
-    print("\n===== Q4 最优策略（按 BMI 组）=====")
+    print("\n===== Q4 最优策略（按 BMI组）=====")
     if not rec_df.empty:
         for _, r in rec_df.iterrows():
             print(f"{r['BMI_group']:>8} n={int(r['n'])} | "
