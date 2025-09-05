@@ -91,7 +91,9 @@
     （若 sigma_mode=ga_local）outputs_q3/q3_sigma_by_ga.csv：σ(孕周) 估计表
   >> 脚本会自动兼容你给的列名映射（如“孕妇代码/年龄/检测孕周/孕妇BMI/Y染色体浓度/GC含量”等），若身高/体重不存在会自动略过，不影响运行。
   # Q4
-  
+  ## 2
+          python nipt_q4_dual_policy.py --excel 附件.xlsx --sex female --sheet Sheet2
+
 ## 推荐：用 Q1 清洗结果
     python nipt_q4_policy.py --clean_csv outputs_q1/q1_clean_male.csv
 
